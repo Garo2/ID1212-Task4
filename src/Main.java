@@ -5,18 +5,73 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class Main {
 
 
+    /**
+     * @param args
+     * @throws IOException
+     * @throws NoSuchAlgorithmException
+     * @throws KeyManagementException
+     */
     //Before you start running the program, edit configuration by go to: -> Run -> Edit Configurations -> Program arguments.
     // Enter first username without hostname (garom) and then password of the email
     //<username> <password>
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, KeyManagementException {
         int maxSizePerPart = 4096;
-        receiveEmails(args, maxSizePerPart);
+
+        EmailSender emailSender = new EmailSender(args, "smtp.kth.se", 587);
+        emailSender.startSendingEmailProcess();
+
+
+        //uncomment the below method call to show the email's contents
+        //receiveEmails(args, maxSizePerPart);
     }
+
+
+    public static void receiveEmails(String[] args, int maxSizePerPart) {
+        try {
+            String host = "webmail.kth.se";
+            int port = 993;
+
+            SSLSocketFactory sslSocketFactory = createSSLSocketFactory();
+            SSLSocket secureSocket = createSecureSocket(sslSocketFactory, host, port);
+
+            String connectionConfirm = receiveConnectioncConfirmation(secureSocket, maxSizePerPart);
+            System.out.println(connectionConfirm);
+
+            String loginConf = receiveLoginConfirmation(args, secureSocket, maxSizePerPart);
+            System.out.println(loginConf);
+
+            String listInboxContent = reciveListingInboxContent(secureSocket, maxSizePerPart);
+            System.out.println(listInboxContent);
+
+            String sltInboxContent = selectInboxContent(secureSocket,maxSizePerPart);
+            System.out.println(sltInboxContent);
+
+            String firstMsgContent = fetchFirstMsgContent(secureSocket,maxSizePerPart);
+            System.out.println(firstMsgContent);
+
+            String firstTenMsgContent = fetchFirstTenMsgContent(secureSocket,maxSizePerPart);
+            System.out.println(firstTenMsgContent);
+
+            String logoutContent = logoutTheUserContent(secureSocket,maxSizePerPart);
+            System.out.println(logoutContent);
+
+        }
+        catch (IOException ioEx) {
+            System.out.println("creating a SSLSocket failed");
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
 
     public static String buildLoginCommand(String[] args) {
         String userName = args[0];
@@ -109,46 +164,11 @@ public class Main {
 
 
 
-    private static void sendDataToServer(String dataToClient, OutputStream serverDataStream) throws IOException {
+    static void sendDataToServer(String dataToClient, OutputStream serverDataStream) throws IOException {
         serverDataStream.write(dataToClient.getBytes(StandardCharsets.UTF_8));
     }
 
-    public static void receiveEmails(String[] args, int maxSizePerPart) throws IOException {
-        try {
-            String host = "webmail.kth.se";
-            int port = 993;
 
-            SSLSocketFactory sslSocketFactory = createSSLSocketFactory();
-            SSLSocket secureSocket = createSecureSocket(sslSocketFactory, host, port);
-
-            String connectionConfirm = receiveConnectioncConfirmation(secureSocket, maxSizePerPart);
-            System.out.println(connectionConfirm);
-
-            String loginConf = receiveLoginConfirmation(args, secureSocket, maxSizePerPart);
-            System.out.println(loginConf);
-
-            String listInboxContent = reciveListingInboxContent(secureSocket, maxSizePerPart);
-            System.out.println(listInboxContent);
-
-            String sltInboxContent = selectInboxContent(secureSocket,maxSizePerPart);
-            System.out.println(sltInboxContent);
-
-            String firstMsgContent = fetchFirstMsgContent(secureSocket,maxSizePerPart);
-            System.out.println(firstMsgContent);
-
-            String firstTenMsgContent = fetchFirstTenMsgContent(secureSocket,maxSizePerPart);
-            System.out.println(firstTenMsgContent);
-
-            String logoutContent = logoutTheUserContent(secureSocket,maxSizePerPart);
-            System.out.println(logoutContent);
-
-        }
-        catch (IOException ioEx) {
-            System.out.println("creating a SSLSocket failed");
-        }catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     private static SSLSocketFactory createSSLSocketFactory() throws IOException {
         return (SSLSocketFactory) SSLSocketFactory.getDefault();
@@ -183,7 +203,7 @@ public class Main {
 
 
 
-    private static boolean checkRequestEnd(int leng, byte[] bufferArray, String confimrationResponse) {
+    static boolean checkRequestEnd(int leng, byte[] bufferArray, String confimrationResponse) {
 
         byte[] validBufferArr = Arrays.copyOf(bufferArray, leng);
         String serverReponse = new String(validBufferArr);
